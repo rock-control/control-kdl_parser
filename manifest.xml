@@ -7,7 +7,7 @@
   <url>http://</url>
   <logo>http://</logo>
 
-  <depend package="workspace/control/kdl" />
+  <depend package="control/kdl" />
   <depend package="base/types"/>
   <depend package="control/urdf"/>
 
