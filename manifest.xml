@@ -1,0 +1,14 @@
+<package>
+  <description brief="Library to parse a URDF file into a KDL tree">
+  
+  </description>
+  <author></author>
+  <license></license>
+  <url>http://</url>
+  <logo>http://</logo>
+
+  <depend package="workspace/control/kdl" />
+  <depend package="base/types"/>
+  <depend package="control/urdf"/>
+
+</package>
