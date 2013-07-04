@@ -75,6 +75,7 @@ Joint toKdl(boost::shared_ptr<urdf::Joint> jnt)
 
     Frame F_parent_jnt = toKdl(jnt->parent_to_joint_origin_transform);
 
+#ifdef KDL_BESMAN_MOD
     switch (jnt->type){
     case urdf::Joint::FIXED:{
         return KDL::Joint(jnt->name, KDL::Joint::None, jnt->calibration_dfki->scale,
@@ -94,9 +95,6 @@ Joint toKdl(boost::shared_ptr<urdf::Joint> jnt)
                           jnt->calibration_dfki->scale, jnt->calibration_dfki->offset, 0, 0, 0,
                           jnt->calibration_dfki->kx, jnt->calibration_dfki->ky, jnt->calibration_dfki->kz);
     }
-
-        ////////////////////////////////////////////////////////////////////////////////////////////////////////
-        //AILA CHANGE!!! Included new joint type
     case urdf::Joint::FOURLINKS:
     {
         KDL::Joint ret = KDL::Joint(jnt->name, F_parent_jnt, KDL::Joint::FourLinks,
@@ -106,14 +104,59 @@ Joint toKdl(boost::shared_ptr<urdf::Joint> jnt)
                                     jnt->calibration_dfki->kx, jnt->calibration_dfki->ky, jnt->calibration_dfki->kz);
         return ret;
     }
-        ////////////////////////////////////////////////////////////////////////////////////////////////////////
     default:{
-        LOG_DEBUG("WARN: Converting unknown joint type of joint '%s' into a fixed joint", jnt->name.c_str());
+        LOG_ERROR("Converting unknown joint type of joint '%s' into a fixed joint", jnt->name.c_str());
         return Joint(jnt->name, Joint::None);
     }
     }
     return Joint();
 }
+#elif URDF_BESMAN_MOD
+    switch (jnt->type){
+    case urdf::Joint::FIXED:{
+        return KDL::Joint(jnt->name, KDL::Joint::None, jnt->calibration_dfki->scale,
+                          jnt->calibration_dfki->offset);
+    }
+    case urdf::Joint::REVOLUTE:
+    case urdf::Joint::CONTINUOUS:{
+        KDL::Vector axis = toKdl(jnt->axis);
+        return KDL::Joint(jnt->name, F_parent_jnt.p, F_parent_jnt.M * axis, KDL::Joint::RotAxis,
+                          jnt->calibration_dfki->scale, jnt->calibration_dfki->offset);
+    }
+    case urdf::Joint::PRISMATIC:{
+        KDL::Vector axis = toKdl(jnt->axis);
+        return KDL::Joint(jnt->name, F_parent_jnt.p, F_parent_jnt.M * axis, KDL::Joint::TransAxis,
+                          jnt->calibration_dfki->scale, jnt->calibration_dfki->offset);
+    }
+    default:{
+        LOG_ERROR("Converting unknown joint type of joint '%s' into a fixed joint", jnt->name.c_str());
+        return Joint(jnt->name, Joint::None);
+    }
+    }
+    return Joint();
+#else
+    switch (jnt->type){
+    case urdf::Joint::FIXED:{
+        return KDL::Joint(jnt->name, KDL::Joint::None, jnt->calibration_dfki->scale);
+    }
+    case urdf::Joint::REVOLUTE:
+    case urdf::Joint::CONTINUOUS:{
+        KDL::Vector axis = toKdl(jnt->axis);
+        return KDL::Joint(jnt->name, F_parent_jnt.p, F_parent_jnt.M * axis, KDL::Joint::RotAxis,
+                          jnt->calibration_dfki->scale);
+    }
+    case urdf::Joint::PRISMATIC:{
+        KDL::Vector axis = toKdl(jnt->axis);
+        return KDL::Joint(jnt->name, F_parent_jnt.p, F_parent_jnt.M * axis, KDL::Joint::TransAxis);
+    }
+    default:{
+        LOG_ERROR("Converting unknown joint type of joint '%s' into a fixed joint", jnt->name.c_str());
+        return Joint(jnt->name, Joint::None);
+    }
+    }
+    return Joint();
+}
+#endif
 
 // construct inertia
 RigidBodyInertia toKdl(boost::shared_ptr<urdf::Inertial> i)
