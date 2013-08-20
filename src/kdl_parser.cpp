@@ -35,7 +35,8 @@
 /* Author: Wim Meeussen */
 
 #include "kdl_parser.hpp"
-#include <urdf/model.h>
+#include <urdf_model/model.h>
+#include <urdf_parser/urdf_parser.h>
 #include <kdl/frames_io.hpp>
 
 #include <base/Logging.hpp>
@@ -67,15 +68,15 @@ Frame toKdl(urdf::Pose p)
 // construct joint
 Joint toKdl(boost::shared_ptr<urdf::Joint> jnt)
 {
+    Frame F_parent_jnt = toKdl(jnt->parent_to_joint_origin_transform);
+
+#ifdef KDL_BESMAN_MOD
     if(!jnt->calibration_dfki){
         LOG_DEBUG("URDF Joint %s had no calibration_dfki attribute. Creating.", jnt->name.c_str());
         jnt->calibration_dfki = boost::shared_ptr<urdf::JointCalibrationDFKI>(new urdf::JointCalibrationDFKI());
         LOG_DEBUG("URDF Joint %s had no calibration_dfki attribute. Creating.... done", jnt->name.c_str());
     }
 
-    Frame F_parent_jnt = toKdl(jnt->parent_to_joint_origin_transform);
-
-#ifdef KDL_BESMAN_MOD
     switch (jnt->type){
     case urdf::Joint::FIXED:{
         return KDL::Joint(jnt->name, KDL::Joint::None, jnt->calibration_dfki->scale,
@@ -137,13 +138,12 @@ Joint toKdl(boost::shared_ptr<urdf::Joint> jnt)
 #else
     switch (jnt->type){
     case urdf::Joint::FIXED:{
-        return KDL::Joint(jnt->name, KDL::Joint::None, jnt->calibration_dfki->scale);
+        return KDL::Joint(jnt->name, KDL::Joint::None);
     }
     case urdf::Joint::REVOLUTE:
     case urdf::Joint::CONTINUOUS:{
         KDL::Vector axis = toKdl(jnt->axis);
-        return KDL::Joint(jnt->name, F_parent_jnt.p, F_parent_jnt.M * axis, KDL::Joint::RotAxis,
-                          jnt->calibration_dfki->scale);
+        return KDL::Joint(jnt->name, F_parent_jnt.p, F_parent_jnt.M * axis, KDL::Joint::RotAxis);
     }
     case urdf::Joint::PRISMATIC:{
         KDL::Vector axis = toKdl(jnt->axis);
@@ -197,11 +197,11 @@ bool addChildrenToTree(boost::shared_ptr<const urdf::Link> root, Tree& tree)
 }
 
 
-bool treeFromFile(const string& file, Tree& tree)
+bool treeFromFile(const string& path, Tree& tree)
 {
-    TiXmlDocument urdf_xml;
-    urdf_xml.LoadFile(file);
-    return treeFromXml(&urdf_xml, tree);
+    std::ifstream file(path.c_str());
+    std::string str((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    return treeFromString(str, tree);
 }
 
 #if 0
@@ -218,21 +218,9 @@ bool treeFromParam(const string& param, Tree& tree)
 
 bool treeFromString(const string& xml, Tree& tree)
 {
-    TiXmlDocument urdf_xml;
-    urdf_xml.Parse(xml.c_str());
-    return treeFromXml(&urdf_xml, tree);
+    boost::shared_ptr<urdf::ModelInterface> robot_model = urdf::parseURDF(xml);
+    return treeFromUrdfModel(*robot_model, tree);
 }
-
-bool treeFromXml(TiXmlDocument *xml_doc, Tree& tree)
-{
-    urdf::Model robot_model;
-    if (!robot_model.initXml(xml_doc)){
-        LOG_ERROR("Could not generate robot model");
-        return false;
-    }
-    return treeFromUrdfModel(robot_model, tree);
-}
-
 
 bool treeFromUrdfModel(const urdf::ModelInterface& robot_model, Tree& tree)
 {

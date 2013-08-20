@@ -9,6 +9,6 @@
 
   <depend package="control/kdl" />
   <depend package="base/types"/>
-  <depend package="control/urdf"/>
+  <depend package="control/urdfdom_headers"/>
 
 </package>
