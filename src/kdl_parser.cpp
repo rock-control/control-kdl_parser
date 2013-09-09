@@ -70,72 +70,6 @@ Joint toKdl(boost::shared_ptr<urdf::Joint> jnt)
 {
     Frame F_parent_jnt = toKdl(jnt->parent_to_joint_origin_transform);
 
-#ifdef KDL_BESMAN_MOD
-    if(!jnt->calibration_dfki){
-        LOG_DEBUG("URDF Joint %s had no calibration_dfki attribute. Creating.", jnt->name.c_str());
-        jnt->calibration_dfki = boost::shared_ptr<urdf::JointCalibrationDFKI>(new urdf::JointCalibrationDFKI());
-        LOG_DEBUG("URDF Joint %s had no calibration_dfki attribute. Creating.... done", jnt->name.c_str());
-    }
-
-    switch (jnt->type){
-    case urdf::Joint::FIXED:{
-        return KDL::Joint(jnt->name, KDL::Joint::None, jnt->calibration_dfki->scale,
-                          jnt->calibration_dfki->offset, 0, 0, 0, jnt->calibration_dfki->kx,
-                          jnt->calibration_dfki->ky, jnt->calibration_dfki->kz);
-    }
-    case urdf::Joint::REVOLUTE:
-    case urdf::Joint::CONTINUOUS:{
-        KDL::Vector axis = toKdl(jnt->axis);
-        return KDL::Joint(jnt->name, F_parent_jnt.p, F_parent_jnt.M * axis, KDL::Joint::RotAxis,
-                          jnt->calibration_dfki->scale, jnt->calibration_dfki->offset, 0, 0, 0,
-                          jnt->calibration_dfki->kx, jnt->calibration_dfki->ky, jnt->calibration_dfki->kz);
-    }
-    case urdf::Joint::PRISMATIC:{
-        KDL::Vector axis = toKdl(jnt->axis);
-        return KDL::Joint(jnt->name, F_parent_jnt.p, F_parent_jnt.M * axis, KDL::Joint::TransAxis,
-                          jnt->calibration_dfki->scale, jnt->calibration_dfki->offset, 0, 0, 0,
-                          jnt->calibration_dfki->kx, jnt->calibration_dfki->ky, jnt->calibration_dfki->kz);
-    }
-    case urdf::Joint::FOURLINKS:
-    {
-        KDL::Joint ret = KDL::Joint(jnt->name, F_parent_jnt, KDL::Joint::FourLinks,
-                                    jnt->description4l->r1, jnt->description4l->r2, jnt->description4l->d,
-                                    jnt->description4l->l, jnt->description4l->theta, jnt->calibration_dfki->scale,
-                                    jnt->calibration_dfki->offset, 0, 0, 0,
-                                    jnt->calibration_dfki->kx, jnt->calibration_dfki->ky, jnt->calibration_dfki->kz);
-        return ret;
-    }
-    default:{
-        LOG_ERROR("Converting unknown joint type of joint '%s' into a fixed joint", jnt->name.c_str());
-        return Joint(jnt->name, Joint::None);
-    }
-    }
-    return Joint();
-}
-#elif URDF_BESMAN_MOD
-    switch (jnt->type){
-    case urdf::Joint::FIXED:{
-        return KDL::Joint(jnt->name, KDL::Joint::None, jnt->calibration_dfki->scale,
-                          jnt->calibration_dfki->offset);
-    }
-    case urdf::Joint::REVOLUTE:
-    case urdf::Joint::CONTINUOUS:{
-        KDL::Vector axis = toKdl(jnt->axis);
-        return KDL::Joint(jnt->name, F_parent_jnt.p, F_parent_jnt.M * axis, KDL::Joint::RotAxis,
-                          jnt->calibration_dfki->scale, jnt->calibration_dfki->offset);
-    }
-    case urdf::Joint::PRISMATIC:{
-        KDL::Vector axis = toKdl(jnt->axis);
-        return KDL::Joint(jnt->name, F_parent_jnt.p, F_parent_jnt.M * axis, KDL::Joint::TransAxis,
-                          jnt->calibration_dfki->scale, jnt->calibration_dfki->offset);
-    }
-    default:{
-        LOG_ERROR("Converting unknown joint type of joint '%s' into a fixed joint", jnt->name.c_str());
-        return Joint(jnt->name, Joint::None);
-    }
-    }
-    return Joint();
-#else
     switch (jnt->type){
     case urdf::Joint::FIXED:{
         return KDL::Joint(jnt->name, KDL::Joint::None);
@@ -156,7 +90,6 @@ Joint toKdl(boost::shared_ptr<urdf::Joint> jnt)
     }
     return Joint();
 }
-#endif
 
 // construct inertia
 RigidBodyInertia toKdl(boost::shared_ptr<urdf::Inertial> i)
