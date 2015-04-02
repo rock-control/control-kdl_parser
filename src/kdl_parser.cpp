@@ -46,7 +46,6 @@ using namespace KDL;
 
 namespace kdl_parser{
 
-
 // construct vector
 Vector toKdl(urdf::Vector3 v)
 {
@@ -169,6 +168,248 @@ bool treeFromUrdfModel(const urdf::ModelInterface& robot_model, Tree& tree)
             return false;
 
     return true;
+}
+
+/*
+ * SDF to KDL
+ * bellow there are the source codes to convert SDFs information to KDL
+ */
+
+typedef std::map<std::string, sdf::ElementPtr> JointsMap;
+typedef std::map<std::string, sdf::ElementPtr> LinksMap;
+typedef std::map<std::string, std::vector<std::string> > LinkNamesMap;
+
+/**
+ * convert <axis> element to KDL::Vector
+ */
+KDL::Vector sdf_axis_to_kdl(sdf::ElementPtr sdf)
+{
+    double x, y, z;
+    std::string axis_value = sdf->GetElement("xyz")->Get<std::string>();
+    sscanf(axis_value.c_str(), "%lf %lf %lf", &x, &y, &z);
+    return KDL::Vector(x, y, z);
+}
+
+/**
+ * convert <pose> element to KDL::Frame
+ */
+KDL::Frame sdf_pose_to_kdl(sdf::ElementPtr sdf)
+{
+
+    double x, y, z;
+    double roll, pitch, yaw;
+    std::string pose_value = sdf->Get<std::string>();
+
+    sscanf(pose_value.c_str(), "%lf %lf %lf %lf %lf %lf", &x, &y, &z, &roll, &pitch, &yaw);
+
+    KDL::Rotation rotation = KDL::Rotation::RPY(roll, pitch, yaw);
+    KDL::Vector position = KDL::Vector(x, y, z);
+
+    return KDL::Frame(rotation, position);
+}
+
+/**
+ * convert <inertial> element to KDL::RigidBodyInertia
+ */
+KDL::RigidBodyInertia sdf_inertial_to_kdl(sdf::ElementPtr sdf)
+{
+
+    KDL::Frame pose = sdf_pose_to_kdl(sdf->GetElement("pose"));
+    double mass;
+
+    if (sdf->HasElement("mass")){
+        mass = sdf->GetElement("mass")->Get<double>();
+        if (sdf->HasElement("inertia")){
+
+            sdf::ElementPtr sdf_inertia = sdf->GetElement("inertia");
+
+            char *tags[] = {"ixx", "ixy", "ixz", "iyy", "iyz", "izz" };
+
+            double ixx, ixy, ixz, iyy, iyz, izz;
+            double *ptr[] = {&ixx, &ixy, &ixz, &iyy, &iyz, &izz};
+
+            for (int i = 0; i < 6; i++){
+                (*ptr[i]) = sdf_inertia->GetElement(tags[i])->Get<double>();
+            }
+
+            return pose.M * RigidBodyInertia(mass, pose.p,
+                                            RotationalInertia(ixx, iyy, izz, ixy, ixz, iyz));
+        }
+    }
+
+    return KDL::RigidBodyInertia();
+}
+
+/**
+ * convert <joint> element to KDL::Joint
+ */
+KDL::Joint sdf_joint_to_kdl(sdf::ElementPtr sdf){
+
+    std::string name = sdf->Get<std::string>("name");
+    std::string type = sdf->Get<std::string>("type");
+
+    if (sdf->HasElement("pose")){
+         KDL::Frame pose = sdf_pose_to_kdl(sdf->GetElement("pose"));
+         if (type == "revolute"){
+             KDL::Vector axis = sdf_axis_to_kdl(sdf->GetElement("axis"));
+             return KDL::Joint(name, pose.p, pose.M * axis, KDL::Joint::RotAxis);
+         }
+         else if (type == "prismatic"){
+             KDL::Vector axis = sdf_axis_to_kdl(sdf->GetElement("axis"));
+             return KDL::Joint(name, pose.p, pose.M * axis, KDL::Joint::TransAxis);
+         }
+
+    }
+
+    return KDL::Joint(KDL::Joint::None);
+}
+
+
+/**
+ * Fill KDL::Tree with SDF information
+ */
+void fillKdlTreeFromSDF(LinkNamesMap linkNames,
+                        JointsMap joints,
+                        LinksMap links,
+                        std::string parent_name,
+                        KDL::Tree& tree)
+{
+
+    LinkNamesMap::iterator parentItr = linkNames.find(parent_name);
+
+    if (parentItr != linkNames.end()){
+        for (std::vector<std::string>::iterator childItr = parentItr->second.begin();
+             childItr != parentItr->second.end(); childItr++) {
+
+            KDL::Joint joint;
+            KDL::RigidBodyInertia I;
+
+            LinksMap::iterator link_itr = links.find(*childItr);
+
+            if (link_itr != links.end()){
+                sdf::ElementPtr sdf_link = link_itr->second;
+
+                if (sdf_link->HasElement("inertial")){
+                    I = sdf_inertial_to_kdl(sdf_link->GetElement("inertial"));
+                }
+            }
+
+            JointsMap::iterator  joint_itr = joints.find(*childItr);
+
+            if (joint_itr != joints.end()){
+                sdf::ElementPtr sdf_joint = joint_itr->second;
+                joint = sdf_joint_to_kdl(sdf_joint);
+            }
+
+
+            KDL::Segment segment(*childItr, joint,
+                                            KDL::Frame(),
+                                            I);
+
+            tree.addSegment(segment, parent_name);
+
+            fillKdlTreeFromSDF(linkNames, joints, links, *childItr, tree);
+        }
+    }
+}
+
+/**
+ * create a data structure to map <joint> elements
+ * use link child as key to map refence the joints
+ * if joint is a child then it has a joint
+ */
+JointsMap sdfLoadJoints(sdf::ElementPtr sdf_model)
+{
+    JointsMap joints;
+
+    if (sdf_model->HasElement("joint")) {
+        sdf::ElementPtr jointElem = sdf_model->GetElement("joint");
+
+        while (jointElem) {
+            std::string childLinkName = jointElem->GetElement("child")->Get<std::string>();
+            joints.insert(std::make_pair<std::string, sdf::ElementPtr>(childLinkName, jointElem));
+            jointElem = jointElem->GetNextElement("joint");
+        }
+    }
+
+    return joints;
+}
+
+/**
+ * create a data structure to map <link> elements
+ * use link name as key to map the links
+ */
+LinksMap sdfLoadLinks(sdf::ElementPtr sdf_model)
+{
+    std::map<std::string, sdf::ElementPtr> links;
+
+    if (sdf_model->HasElement("link")) {
+        sdf::ElementPtr linkElem = sdf_model->GetElement("link");
+        while (linkElem) {
+            std::string linkName = linkElem->Get<std::string>("name");
+            links.insert(std::make_pair<std::string, sdf::ElementPtr>(linkName, linkElem));
+            linkElem = linkElem->GetNextElement("link");
+        }
+    }
+
+    return links;
+}
+
+/**
+ * create a structure to map parent and child
+ * each parent has a list of children
+ * this result is used to fill KDL::Tree
+ */
+LinkNamesMap sdfBuildLinkNames(LinksMap links, JointsMap joints, std::string rootName){
+
+    LinkNamesMap linkNames;
+    LinksMap::iterator linksItr;
+    JointsMap::iterator jointItr;
+
+    //list each link and build and associate each child to its parent
+    for (linksItr = links.begin(); linksItr != links.end(); linksItr++){
+        std::string child_name = linksItr->first;
+        std::string parent_name = rootName;
+
+        //check if child has a parent
+        if ((jointItr = joints.find(child_name)) != joints.end()) {
+            parent_name = jointItr->second->GetElement("parent")->Get<std::string>();
+        }
+
+        //insert child name in vector associated with parent name
+        LinkNamesMap::iterator itr = linkNames.find(parent_name);
+        if (itr == linkNames.end()){
+            std::vector<std::string> childs;
+            childs.push_back(child_name);
+            linkNames.insert(std::make_pair<std::string, std::vector<std::string> >(parent_name, childs));
+        }
+        else {
+            itr->second.push_back(child_name);
+        }
+    }
+
+    return linkNames;
+
+}
+
+void treeFromSdfModel(const sdf::ElementPtr& sdf_model, KDL::Tree& out)
+{
+    // model is the root segment
+    std::string modelName = sdf_model->Get<std::string>("name");
+
+    // map parents and children links
+    LinksMap links = sdfLoadLinks(sdf_model);
+
+    // map links using link name
+    JointsMap joints = sdfLoadJoints(sdf_model);
+
+    // map joints using child link names
+    LinkNamesMap linkNames = sdfBuildLinkNames(links, joints, modelName);
+
+    //build KDL::Tree using SDF information
+    Tree tree(modelName);
+    fillKdlTreeFromSDF(linkNames, joints, links, tree.getRootSegment()->first, tree);
+    out = tree;
 }
 
 }
