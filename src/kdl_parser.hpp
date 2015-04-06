@@ -39,8 +39,9 @@
 
 #include <kdl/tree.hpp>
 #include <string>
-#include "urdf_model/model.h"
 #include <tinyxml.h>
+#include <sdf/sdf.hh>
+#include "urdf_model/model.h"
 
 namespace kdl_parser{
 
@@ -73,6 +74,13 @@ bool treeFromString(const std::string& xml, KDL::Tree& tree);
  * returns true on success, false on failure
  */
 bool treeFromUrdfModel(const urdf::ModelInterface& robot_model, KDL::Tree& tree);
+
+/** Constructs a KDL tree from a SDF robot model
+ * \param robot_model The SDF robot model
+ * \param tree The resulting KDL Tree
+ * returns true on success, false on failure
+ */
+void treeFromSdfModel(const sdf::ElementPtr& sdf_model, KDL::Tree& tree);
 }
 
 #endif
