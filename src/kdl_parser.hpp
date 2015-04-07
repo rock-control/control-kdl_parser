@@ -39,17 +39,26 @@
 
 #include <kdl/tree.hpp>
 #include <string>
-#include "urdf_model/model.h"
 #include <tinyxml.h>
+#include <sdf/sdf.hh>
+#include "urdf_model/model.h"
 
 namespace kdl_parser{
+
+//define format of robot model
+enum ROBOT_MODEL_FORMAT
+{
+   ROBOT_MODEL_URDF,
+   ROBOT_MODEL_SDF
+};
+
 
 /** Constructs a KDL tree from a file, given the file name
  * \param file The filename from where to read the xml
  * \param tree The resulting KDL Tree
  * returns true on success, false on failure
  */
-bool treeFromFile(const std::string& file, KDL::Tree& tree);
+bool treeFromFile(const std::string& file, KDL::Tree& tree, ROBOT_MODEL_FORMAT format = ROBOT_MODEL_URDF);
 
 #if 0
 /** Constructs a KDL tree from the parameter server, given the parameter name
@@ -65,7 +74,7 @@ bool treeFromParam(const std::string& param, KDL::Tree& tree);
  * \param tree The resulting KDL Tree
  * returns true on success, false on failure
  */
-bool treeFromString(const std::string& xml, KDL::Tree& tree);
+bool treeFromString(const std::string& xml, KDL::Tree& tree, ROBOT_MODEL_FORMAT format = ROBOT_MODEL_URDF);
 
 /** Constructs a KDL tree from a URDF robot model
  * \param robot_model The URDF robot model
@@ -73,6 +82,12 @@ bool treeFromString(const std::string& xml, KDL::Tree& tree);
  * returns true on success, false on failure
  */
 bool treeFromUrdfModel(const urdf::ModelInterface& robot_model, KDL::Tree& tree);
+
+/** Constructs a KDL tree from a SDF robot model
+ * \param robot_model The SDF robot model
+ * \param tree The resulting KDL Tree
+ */
+void treeFromSdfModel(const sdf::ElementPtr& sdf_model, KDL::Tree& out);
 }
 
 #endif

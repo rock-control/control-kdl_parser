@@ -37,12 +37,24 @@
 #include "kdl_parser/kdl_parser.hpp"
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/frames_io.hpp>
-#include <urdf/model.h>
+#include <urdf_model/model.h>
+#include <urdf_parser/urdf_parser.h>
 #include <iostream>
 
 using namespace KDL;
 using namespace std;
 using namespace urdf;
+
+std::string fileExtension(std::string filename)
+{
+    size_t npos = filename.rfind(".");
+
+    if (npos == std::string::npos){
+        return "";
+    }
+
+    return filename.substr(npos+1, filename.size());
+}
 
 void printLink(const SegmentMap::const_iterator& link, const std::string& prefix)
 {
@@ -51,7 +63,41 @@ void printLink(const SegmentMap::const_iterator& link, const std::string& prefix
     printLink(link->second.children[i], prefix + "  ");
 }
 
+void printTree(Tree& tree){
+    cout << " ======================================" << endl;
+    cout << " Tree has " << tree.getNrOfSegments() << " link(s) and a root link" << endl;
+    cout << " ======================================" << endl;
 
+    SegmentMap::const_iterator root = tree.getRootSegment();
+    printLink(root, "");
+}
+
+void testSdfFromFile(std::string path)
+{
+    Tree tree;
+     if (!kdl_parser::treeFromFile(path, tree , kdl_parser::ROBOT_MODEL_SDF)){
+         std::cerr << "unable to open sdf file" << std::endl;
+         return;
+     }
+
+     std::cout << "sdf to kdl -> load from file" << std::endl;
+     printTree(tree);
+}
+
+void testSdfFromString(std::string path)
+{
+    std::ifstream file(path.c_str());
+    std::string xml((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+
+    Tree tree;
+    if (!kdl_parser::treeFromString(xml, tree , kdl_parser::ROBOT_MODEL_SDF)){
+        std::cerr << "unable to open sdf string" << std::endl;
+        return;
+    }
+
+    std::cout << "sdf to kdl -> load from string" << std::endl;
+    printTree(tree);
+}
 
 int main(int argc, char** argv)
 {
@@ -59,20 +105,37 @@ int main(int argc, char** argv)
     std::cerr << "Expect xml file to parse" << std::endl;
     return -1;
   }
-  Model robot_model;
-  if (!robot_model.initFile(argv[1]))
-  {cerr << "Could not generate robot model" << endl; return false;}
 
-  Tree my_tree;
-  if (!kdl_parser::treeFromUrdfModel(robot_model, my_tree)) 
-  {cerr << "Could not extract kdl tree" << endl; return false;}
+  std::string path = argv[1];
+  std::string extension = fileExtension(path);
 
-  // walk through tree
-  cout << " ======================================" << endl;
-  cout << " Tree has " << my_tree.getNrOfSegments() << " link(s) and a root link" << endl;
-  cout << " ======================================" << endl;
-  SegmentMap::const_iterator root = my_tree.getRootSegment();
-  printLink(root, "");
+  if (extension == "urdf"){
+      Tree my_tree;
+      std::ifstream file(path.c_str());
+      std::string xml((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+
+      boost::shared_ptr<urdf::ModelInterface> robot_model = urdf::parseURDF(xml);
+
+      if (!robot_model)
+      {cerr << "Could not generate robot model" << endl; return false;}
+
+
+      if (!kdl_parser::treeFromUrdfModel(*robot_model, my_tree))
+      {cerr << "Could not extract kdl tree" << endl; return false;}
+
+      printTree(my_tree);
+  }
+  else if (extension == "sdf") {
+      testSdfFromString(path);
+      testSdfFromFile(path);
+  }
+  else {
+      std::cerr << "file type is not supported" << std::endl;
+      return -1;
+  }
+
+  return 0;
+
 }
 
 
