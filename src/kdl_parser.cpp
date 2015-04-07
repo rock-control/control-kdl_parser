@@ -46,6 +46,15 @@ using namespace KDL;
 
 namespace kdl_parser{
 
+/**
+ * load kdl tree from sdf xml string
+ */
+extern bool treeFromSdfString(const std::string& xml, KDL::Tree& tree);
+
+/**
+ * load kdl tree from sdf file
+ */
+extern bool treeFromSdfFile(const std::string& path, KDL::Tree& tree);
 
 // construct vector
 Vector toKdl(urdf::Vector3 v)
@@ -130,11 +139,23 @@ bool addChildrenToTree(urdf::LinkConstSharedPtr root, Tree& tree)
 }
 
 
-bool treeFromFile(const string& path, Tree& tree)
+bool treeFromFile(const string& path, Tree& tree, ROBOT_MODEL_FORMAT format)
 {
-    std::ifstream file(path.c_str());
-    std::string str((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    return treeFromString(str, tree);
+    switch (format)
+    {
+        case ROBOT_MODEL_URDF:
+        {
+            std::ifstream file(path.c_str());
+            std::string str((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+            return treeFromString(str, tree);
+        }
+        case ROBOT_MODEL_SDF:
+        {
+            return treeFromSdfFile(path, tree);
+        }
+    }
+
+    return false;
 }
 
 #if 0
@@ -149,10 +170,22 @@ bool treeFromParam(const string& param, Tree& tree)
 }
 #endif
 
-bool treeFromString(const string& xml, Tree& tree)
+bool treeFromString(const string& xml, Tree& tree, ROBOT_MODEL_FORMAT format)
 {
-    urdf::ModelInterfaceSharedPtr robot_model = urdf::parseURDF(xml);
-    return treeFromUrdfModel(*robot_model, tree);
+    switch (format)
+    {
+        case ROBOT_MODEL_URDF:
+        {
+            urdf::ModelInterfaceSharedPtr robot_model = urdf::parseURDF(xml);
+            return treeFromUrdfModel(*robot_model, tree);
+        }
+        case ROBOT_MODEL_SDF:
+        {
+            return treeFromSdfString(xml, tree);
+        }
+    }
+
+    return false;
 }
 
 bool treeFromUrdfModel(const urdf::ModelInterface& robot_model, Tree& tree)
