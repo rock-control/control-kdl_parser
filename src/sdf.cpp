@@ -26,8 +26,8 @@ KDL::Vector toKdl(sdf::Vector3 axis)
  */
 KDL::Frame toKdl(sdf::Pose pose)
 {
-    KDL::Rotation rotation = KDL::Rotation::Quaternion(pose.rot.x, pose.rot.y, pose.rot.x, pose.rot.w);
     KDL::Vector position = KDL::Vector(pose.pos.x, pose.pos.y, pose.pos.z);
+    KDL::Rotation rotation = KDL::Rotation::Quaternion(pose.rot.x, pose.rot.y, pose.rot.z, pose.rot.w);
     return KDL::Frame(rotation, position);
 }
 
@@ -72,11 +72,11 @@ KDL::Joint sdfJointToKdl(sdf::ElementPtr sdf)
     if (sdf->HasElement("pose")){
          KDL::Frame pose = toKdl(sdf->GetElement("pose")->Get<sdf::Pose>());
          if (type == "revolute"){
-             KDL::Vector axis = toKdl(sdf->GetElement("axis")->Get<sdf::Vector3>());
+             KDL::Vector axis = toKdl(sdf->GetElement("axis")->GetElement("xyz")->Get<sdf::Vector3>());
              return KDL::Joint(name, pose.p, pose.M * axis, KDL::Joint::RotAxis);
          }
          else if (type == "prismatic"){
-             KDL::Vector axis = toKdl(sdf->GetElement("axis")->Get<sdf::Vector3>());
+             KDL::Vector axis = toKdl(sdf->GetElement("axis")->GetElement("xyz")->Get<sdf::Vector3>());
              return KDL::Joint(name, pose.p, pose.M * axis, KDL::Joint::TransAxis);
          }
 
@@ -126,6 +126,10 @@ void fillKdlTreeFromSDF(LinkNamesMap linkNames,
             KDL::Segment segment(*childItr, joint,
                                             KDL::Frame(),
                                             I);
+
+//            KDL::Segment segment(*childItr, KDL::Joint(),
+//                                            KDL::Frame(),
+//                                            KDL::RigidBodyInertia());
 
             tree.addSegment(segment, parent_name);
 
