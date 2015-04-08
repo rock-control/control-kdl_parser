@@ -69,18 +69,22 @@ KDL::Joint sdfJointToKdl(sdf::ElementPtr sdf)
     std::string name = sdf->Get<std::string>("name");
     std::string type = sdf->Get<std::string>("type");
 
-    if (sdf->HasElement("pose")){
-         KDL::Frame pose = toKdl(sdf->GetElement("pose")->Get<sdf::Pose>());
-         if (type == "revolute"){
-             KDL::Vector axis = toKdl(sdf->GetElement("axis")->GetElement("xyz")->Get<sdf::Vector3>());
-             return KDL::Joint(name, pose.p, pose.M * axis, KDL::Joint::RotAxis);
-         }
-         else if (type == "prismatic"){
-             KDL::Vector axis = toKdl(sdf->GetElement("axis")->GetElement("xyz")->Get<sdf::Vector3>());
-             return KDL::Joint(name, pose.p, pose.M * axis, KDL::Joint::TransAxis);
-         }
 
+    //if the joint there isn't a pose, this pose will be the origin to the parent link
+    KDL::Frame pose;
+    if (sdf->HasElement("pose")){
+         pose = toKdl(sdf->GetElement("pose")->Get<sdf::Pose>());
     }
+
+    if (type == "revolute"){
+        KDL::Vector axis = toKdl(sdf->GetElement("axis")->GetElement("xyz")->Get<sdf::Vector3>());
+        return KDL::Joint(name, pose.p, pose.M * axis, KDL::Joint::RotAxis);
+    }
+    else if (type == "prismatic"){
+        KDL::Vector axis = toKdl(sdf->GetElement("axis")->GetElement("xyz")->Get<sdf::Vector3>());
+        return KDL::Joint(name, pose.p, pose.M * axis, KDL::Joint::TransAxis);
+    }
+
 
     return KDL::Joint(KDL::Joint::None);
 }
