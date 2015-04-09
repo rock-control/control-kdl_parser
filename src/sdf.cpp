@@ -32,6 +32,21 @@ KDL::Frame toKdl(sdf::Pose pose)
 }
 
 /**
+ * convert <joint> element to KDL::Joint
+ */
+KDL::Joint toKdl(std::string name, std::string type, KDL::Frame pose, KDL::Vector axis)
+{
+    if (type == "revolute"){
+        return KDL::Joint(name, pose.p, pose.M * axis, KDL::Joint::RotAxis);
+    }
+    else if (type == "prismatic"){
+        return KDL::Joint(name, pose.p, pose.M * axis, KDL::Joint::TransAxis);
+    }
+
+    return KDL::Joint(KDL::Joint::None);
+}
+
+/**
  * convert <inertial> element to KDL::RigidBodyInertia
  */
 KDL::RigidBodyInertia sdfInertiaToKdl(sdf::ElementPtr sdf)
@@ -59,21 +74,6 @@ KDL::RigidBodyInertia sdfInertiaToKdl(sdf::ElementPtr sdf)
     }
 
     return KDL::RigidBodyInertia();
-}
-
-/**
- * convert <joint> element to KDL::Joint
- */
-KDL::Joint sdfJointToKdl(std::string name, std::string type, KDL::Frame pose, KDL::Vector axis)
-{
-    if (type == "revolute"){
-        return KDL::Joint(name, pose.p, pose.M * axis, KDL::Joint::RotAxis);
-    }
-    else if (type == "prismatic"){
-        return KDL::Joint(name, pose.p, pose.M * axis, KDL::Joint::TransAxis);
-    }
-
-    return KDL::Joint(KDL::Joint::None);
 }
 
 
@@ -178,7 +178,7 @@ void fillKdlTreeFromSDF(LinkNamesMap linkNames,
                 joint_axis = joint2model.M.Inverse() * joint_axis;
             }
 
-            KDL::Joint joint = sdfJointToKdl(joint_name, joint_type, joint2parent, joint_axis);
+            KDL::Joint joint = toKdl(joint_name, joint_type, joint2parent, joint_axis);
 
 
             KDL::Segment segment(*childItr, joint,
