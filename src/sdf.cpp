@@ -64,31 +64,52 @@ KDL::RigidBodyInertia sdfInertiaToKdl(sdf::ElementPtr sdf)
 /**
  * convert <joint> element to KDL::Joint
  */
-KDL::Joint sdfJointToKdl(sdf::ElementPtr sdf)
+KDL::Joint sdfJointToKdl(std::string name, std::string type, KDL::Frame pose, KDL::Vector axis)
 {
-    std::string name = sdf->Get<std::string>("name");
-    std::string type = sdf->Get<std::string>("type");
-
-
-    //if the joint there isn't a pose, this pose will be the origin to the parent link
-    KDL::Frame pose;
-    if (sdf->HasElement("pose")){
-         pose = toKdl(sdf->GetElement("pose")->Get<sdf::Pose>());
-    }
-
     if (type == "revolute"){
-        KDL::Vector axis = toKdl(sdf->GetElement("axis")->GetElement("xyz")->Get<sdf::Vector3>());
         return KDL::Joint(name, pose.p, pose.M * axis, KDL::Joint::RotAxis);
     }
     else if (type == "prismatic"){
-        KDL::Vector axis = toKdl(sdf->GetElement("axis")->GetElement("xyz")->Get<sdf::Vector3>());
         return KDL::Joint(name, pose.p, pose.M * axis, KDL::Joint::TransAxis);
     }
-
 
     return KDL::Joint(KDL::Joint::None);
 }
 
+
+/*
+ * extract joint data
+ */
+void sdfExtractJointData(sdf::ElementPtr sdf_joint,
+                         std::string& joint_name,
+                         std::string& joint_type,
+                         KDL::Frame& joint_pose,
+                         KDL::Vector& joint_axis,
+                         bool& use_parent_model_frame)
+{
+    if (sdf_joint->HasAttribute("name")){
+        joint_name = sdf_joint->Get<std::string>("name");
+    }
+
+    if (sdf_joint->HasAttribute("type")){
+        joint_type = sdf_joint->Get<std::string>("type");
+    }
+
+    if (sdf_joint->HasElement("pose")){
+        joint_pose = toKdl(sdf_joint->GetElement("pose")->Get<sdf::Pose>());
+    }
+
+    if (sdf_joint->HasElement("axis")){
+        sdf::ElementPtr sdf_axis = sdf_joint->GetElement("axis");
+
+        joint_axis = toKdl(sdf_joint->GetElement("axis")->GetElement("xyz")->Get<sdf::Vector3>());
+
+        if (sdf_axis->HasElement("use_parent_model_frame")){
+            use_parent_model_frame = sdf_axis->GetElement("use_parent_model_frame")->Get<bool>();
+        }
+
+    }
+}
 
 /**
  * Fill KDL::Tree with SDF information
@@ -100,40 +121,69 @@ void fillKdlTreeFromSDF(LinkNamesMap linkNames,
                         KDL::Tree& tree)
 {
 
+
     LinkNamesMap::iterator parentItr = linkNames.find(parent_name);
 
     if (parentItr != linkNames.end()){
         for (std::vector<std::string>::iterator childItr = parentItr->second.begin();
              childItr != parentItr->second.end(); childItr++) {
 
-            KDL::Joint joint;
+            LinksMap::iterator child_link_itr = links.find(*childItr);
+
+            if (child_link_itr == links.end()){
+                std::cerr << "internal error: cannot find link: " << *childItr << std::endl;
+                return;
+            }
+
+            sdf::ElementPtr sdf_child_link = child_link_itr->second;
+
+            KDL::Frame child2model;
+            if (sdf_child_link->HasElement("pose")) {
+                child2model = toKdl(sdf_child_link->GetElement("pose")->Get<sdf::Pose>());
+            }
+
             KDL::RigidBodyInertia I;
+            if (sdf_child_link->HasElement("inertial")){
+                I = sdfInertiaToKdl(sdf_child_link->GetElement("inertial"));
+            }
 
-            LinksMap::iterator link_itr = links.find(*childItr);
+            std::string joint_type;
+            std::string joint_name;
+            KDL::Vector joint_axis;
+            KDL::Frame joint2child;
+            bool use_parent_model_frame = false;
 
-            if (link_itr != links.end()){
-                sdf::ElementPtr sdf_link = link_itr->second;
+            JointsMap::iterator joint_itr = joints.find(*childItr);
 
-                if (sdf_link->HasElement("inertial")){
-                    I = sdfInertiaToKdl(sdf_link->GetElement("inertial"));
+            if (joint_itr != joints.end()){
+                sdfExtractJointData(joint_itr->second, joint_name, joint_type, joint2child, joint_axis, use_parent_model_frame);
+            }
+
+            LinksMap::iterator parent_link_itr = links.find(parent_name);
+
+            KDL::Frame parent2model;
+            if (parent_link_itr != links.end()){
+                sdf::ElementPtr sdf_parent_link = parent_link_itr->second;
+
+                if (sdf_parent_link->HasElement("pose")){
+                    parent2model = toKdl(sdf_parent_link->GetElement("pose")->Get<sdf::Pose>());
                 }
             }
 
-            JointsMap::iterator  joint_itr = joints.find(*childItr);
+            KDL::Frame child2parent = parent2model.Inverse() * child2model;
+            KDL::Frame joint2parent = child2parent * joint2child;
 
-            if (joint_itr != joints.end()){
-                sdf::ElementPtr sdf_joint = joint_itr->second;
-                joint = sdfJointToKdl(sdf_joint);
+            if (use_parent_model_frame){
+                KDL::Frame joint2model = joint2child * child2model;
+                joint_axis = joint2model.M.Inverse() * joint_axis;
             }
+
+            KDL::Joint joint = sdfJointToKdl(joint_name, joint_type, joint2parent, joint_axis);
 
 
             KDL::Segment segment(*childItr, joint,
-                                            KDL::Frame(),
+                                            child2parent,
                                             I);
-
-//            KDL::Segment segment(*childItr, KDL::Joint(),
-//                                            KDL::Frame(),
-//                                            KDL::RigidBodyInertia());
 
             tree.addSegment(segment, parent_name);
 
