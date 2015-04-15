@@ -46,6 +46,29 @@ using namespace KDL;
 
 namespace kdl_parser{
 
+const char* formatNameFromID(int type)
+{
+    switch(type)
+    {
+        case ROBOT_MODEL_AUTO: return "autodetected";
+        case ROBOT_MODEL_URDF: return "URDF";
+        case ROBOT_MODEL_SDF: return "SDF";
+        default:
+            throw std::invalid_argument("invalid model type ID given");
+    }
+}
+
+ROBOT_MODEL_FORMAT guessFormatFromFilename(const std::string& file)
+{
+    if (file.substr(file.size() - 4) == ".sdf")
+        return ROBOT_MODEL_SDF;
+    if (file.substr(file.size() - 5) == ".urdf")
+        return ROBOT_MODEL_URDF;
+    if (file.substr(file.size() - 6) == ".world")
+        return ROBOT_MODEL_SDF;
+    throw std::invalid_argument("cannot guess robot model format for " + file);
+}
+
 /**
  * load kdl tree from sdf xml string
  */
@@ -141,6 +164,9 @@ bool addChildrenToTree(boost::shared_ptr<const urdf::Link> root, Tree& tree)
 
 bool treeFromFile(const string& path, Tree& tree, ROBOT_MODEL_FORMAT format)
 {
+    if (format == ROBOT_MODEL_AUTO)
+        format = guessFormatFromFilename(path);
+
     switch (format)
     {
         case ROBOT_MODEL_URDF:
@@ -153,6 +179,8 @@ bool treeFromFile(const string& path, Tree& tree, ROBOT_MODEL_FORMAT format)
         {
             return treeFromSdfFile(path, tree);
         }
+        default:
+            throw invalid_argument(std::string("cannot load file of type ") + formatNameFromID(format));
     }
 
     return false;
@@ -183,6 +211,8 @@ bool treeFromString(const string& xml, Tree& tree, ROBOT_MODEL_FORMAT format)
         {
             return treeFromSdfString(xml, tree);
         }
+        default:
+            throw invalid_argument(std::string("cannot load string of type ") + formatNameFromID(format));
     }
 
     return false;

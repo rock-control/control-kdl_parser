@@ -48,10 +48,21 @@ namespace kdl_parser{
 //define format of robot model
 enum ROBOT_MODEL_FORMAT
 {
-   ROBOT_MODEL_URDF,
-   ROBOT_MODEL_SDF
+    //! try to guess the format
+    ROBOT_MODEL_AUTO,
+    //! URDF model
+    ROBOT_MODEL_URDF,
+    //! SDF model
+    ROBOT_MODEL_SDF
 };
 
+/** Returns the model format based on a filename's extension
+ */
+ROBOT_MODEL_FORMAT guessFormatFromFilename(const std::string& file);
+
+/** Returns the name of one of the ROBOT_MODEL_* format IDs
+ */
+const char* formatNameFromID(int type);
 
 /** Constructs a KDL tree from a file, given the file name
  * \param file The filename from where to read the xml
