@@ -131,8 +131,7 @@ void fillKdlTreeFromSDF(LinkNamesMap linkNames,
             LinksMap::iterator child_link_itr = links.find(*childItr);
 
             if (child_link_itr == links.end()){
-                std::cerr << "internal error: cannot find link: " << *childItr << std::endl;
-                return;
+                throw std::logic_error("cannot find link " + *childItr);
             }
 
             sdf::ElementPtr sdf_child_link = child_link_itr->second;
@@ -189,6 +188,9 @@ void fillKdlTreeFromSDF(LinkNamesMap linkNames,
 
             fillKdlTreeFromSDF(linkNames, joints, links, *childItr, tree);
         }
+    }
+    else{
+        throw std::logic_error("could not find link " + parent_name);
     }
 }
 
@@ -258,6 +260,9 @@ LinkNamesMap sdfBuildLinkNames(LinksMap links, JointsMap joints, std::string roo
 
         //insert child name in vector associated with parent name
         linkNames[parent_name].push_back(child_name);
+        //make sure to register the child, even with an empty vector. There is a
+        //consistency check in treeFromSdfString that requires it.
+        linkNames[child_name];
     }
 
     return linkNames;
