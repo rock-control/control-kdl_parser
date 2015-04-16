@@ -197,7 +197,7 @@ void fillKdlTreeFromSDF(LinkNamesMap linkNames,
  * use link child as key to map refence the joints
  * if joint is a child then it has a joint
  */
-JointsMap sdfLoadJoints(sdf::ElementPtr sdf_model)
+JointsMap sdfLoadJoints(std::string name_prefix, sdf::ElementPtr sdf_model)
 {
     JointsMap joints;
 
@@ -206,7 +206,7 @@ JointsMap sdfLoadJoints(sdf::ElementPtr sdf_model)
 
         while (jointElem) {
             std::string childLinkName = jointElem->GetElement("child")->Get<std::string>();
-            joints.insert(std::make_pair<std::string, sdf::ElementPtr>(childLinkName, jointElem));
+            joints.insert(std::make_pair(name_prefix + childLinkName, jointElem));
             jointElem = jointElem->GetNextElement("joint");
         }
     }
@@ -218,7 +218,7 @@ JointsMap sdfLoadJoints(sdf::ElementPtr sdf_model)
  * create a data structure to map <link> elements
  * use link name as key to map the links
  */
-LinksMap sdfLoadLinks(sdf::ElementPtr sdf_model)
+LinksMap sdfLoadLinks(std::string name_prefix, sdf::ElementPtr sdf_model)
 {
     std::map<std::string, sdf::ElementPtr> links;
 
@@ -226,7 +226,7 @@ LinksMap sdfLoadLinks(sdf::ElementPtr sdf_model)
         sdf::ElementPtr linkElem = sdf_model->GetElement("link");
         while (linkElem) {
             std::string linkName = linkElem->Get<std::string>("name");
-            links.insert(std::make_pair<std::string, sdf::ElementPtr>(linkName, linkElem));
+            links.insert(std::make_pair(name_prefix + linkName, linkElem));
             linkElem = linkElem->GetNextElement("link");
         }
     }
@@ -248,24 +248,16 @@ LinkNamesMap sdfBuildLinkNames(LinksMap links, JointsMap joints, std::string roo
 
     //list each link and build and associate each child to its parent
     for (linksItr = links.begin(); linksItr != links.end(); linksItr++){
-        std::string child_name = linksItr->first;
         std::string parent_name = rootName;
+        std::string child_name  = linksItr->first;
 
         //check if child has a parent
         if ((jointItr = joints.find(child_name)) != joints.end()) {
-            parent_name = jointItr->second->GetElement("parent")->Get<std::string>();
+            parent_name += "::" + jointItr->second->GetElement("parent")->Get<std::string>();
         }
 
         //insert child name in vector associated with parent name
-        LinkNamesMap::iterator itr = linkNames.find(parent_name);
-        if (itr == linkNames.end()){
-            std::vector<std::string> childs;
-            childs.push_back(child_name);
-            linkNames.insert(std::make_pair<std::string, std::vector<std::string> >(parent_name, childs));
-        }
-        else {
-            itr->second.push_back(child_name);
-        }
+        linkNames[parent_name].push_back(child_name);
     }
 
     return linkNames;
@@ -278,10 +270,10 @@ void treeFromSdfModel(const sdf::ElementPtr& sdf_model, KDL::Tree& out)
     std::string modelName = sdf_model->Get<std::string>("name");
 
     // map parents and children links
-    LinksMap links = sdfLoadLinks(sdf_model);
+    LinksMap links = sdfLoadLinks(modelName + "::", sdf_model);
 
     // map links using link name
-    JointsMap joints = sdfLoadJoints(sdf_model);
+    JointsMap joints = sdfLoadJoints(modelName + "::", sdf_model);
 
     // map joints using child link names
     LinkNamesMap linkNames = sdfBuildLinkNames(links, joints, modelName);
