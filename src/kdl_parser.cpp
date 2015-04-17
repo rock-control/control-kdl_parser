@@ -46,6 +46,38 @@ using namespace KDL;
 
 namespace kdl_parser{
 
+const char* formatNameFromID(int type)
+{
+    switch(type)
+    {
+        case ROBOT_MODEL_AUTO: return "autodetected";
+        case ROBOT_MODEL_URDF: return "URDF";
+        case ROBOT_MODEL_SDF: return "SDF";
+        default:
+            throw std::invalid_argument("invalid model type ID given");
+    }
+}
+
+ROBOT_MODEL_FORMAT guessFormatFromFilename(const std::string& file)
+{
+    if (file.substr(file.size() - 4) == ".sdf")
+        return ROBOT_MODEL_SDF;
+    if (file.substr(file.size() - 5) == ".urdf")
+        return ROBOT_MODEL_URDF;
+    if (file.substr(file.size() - 6) == ".world")
+        return ROBOT_MODEL_SDF;
+    throw std::invalid_argument("cannot guess robot model format for " + file);
+}
+
+/**
+ * load kdl tree from sdf xml string
+ */
+extern bool treeFromSdfString(const std::string& xml, KDL::Tree& tree);
+
+/**
+ * load kdl tree from sdf file
+ */
+extern bool treeFromSdfFile(const std::string& path, KDL::Tree& tree);
 
 // construct vector
 Vector toKdl(urdf::Vector3 v)
@@ -130,11 +162,28 @@ bool addChildrenToTree(boost::shared_ptr<const urdf::Link> root, Tree& tree)
 }
 
 
-bool treeFromFile(const string& path, Tree& tree)
+bool treeFromFile(const string& path, Tree& tree, ROBOT_MODEL_FORMAT format)
 {
-    std::ifstream file(path.c_str());
-    std::string str((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    return treeFromString(str, tree);
+    if (format == ROBOT_MODEL_AUTO)
+        format = guessFormatFromFilename(path);
+
+    switch (format)
+    {
+        case ROBOT_MODEL_URDF:
+        {
+            std::ifstream file(path.c_str());
+            std::string str((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+            return treeFromString(str, tree);
+        }
+        case ROBOT_MODEL_SDF:
+        {
+            return treeFromSdfFile(path, tree);
+        }
+        default:
+            throw invalid_argument(std::string("cannot load file of type ") + formatNameFromID(format));
+    }
+
+    return false;
 }
 
 #if 0
@@ -149,10 +198,24 @@ bool treeFromParam(const string& param, Tree& tree)
 }
 #endif
 
-bool treeFromString(const string& xml, Tree& tree)
+bool treeFromString(const string& xml, Tree& tree, ROBOT_MODEL_FORMAT format)
 {
-    boost::shared_ptr<urdf::ModelInterface> robot_model = urdf::parseURDF(xml);
-    return treeFromUrdfModel(*robot_model, tree);
+    switch (format)
+    {
+        case ROBOT_MODEL_URDF:
+        {
+            boost::shared_ptr<urdf::ModelInterface> robot_model = urdf::parseURDF(xml);
+            return treeFromUrdfModel(*robot_model, tree);
+        }
+        case ROBOT_MODEL_SDF:
+        {
+            return treeFromSdfString(xml, tree);
+        }
+        default:
+            throw invalid_argument(std::string("cannot load string of type ") + formatNameFromID(format));
+    }
+
+    return false;
 }
 
 bool treeFromUrdfModel(const urdf::ModelInterface& robot_model, Tree& tree)
