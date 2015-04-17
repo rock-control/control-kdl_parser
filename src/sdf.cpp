@@ -118,6 +118,7 @@ void fillKdlTreeFromSDF(LinkNamesMap linkNames,
                         JointsMap joints,
                         LinksMap links,
                         std::string parent_name,
+                        std::string model_name,
                         KDL::Tree& tree)
 {
 
@@ -177,7 +178,7 @@ void fillKdlTreeFromSDF(LinkNamesMap linkNames,
                 joint_axis = joint2model.M.Inverse() * joint_axis;
             }
 
-            KDL::Joint joint = toKdl(joint_name, joint_type, joint2parent, joint_axis);
+            KDL::Joint joint = toKdl(model_name + "::" + joint_name, joint_type, joint2parent, joint_axis);
 
 
             KDL::Segment segment(*childItr, joint,
@@ -186,7 +187,7 @@ void fillKdlTreeFromSDF(LinkNamesMap linkNames,
 
             tree.addSegment(segment, parent_name);
 
-            fillKdlTreeFromSDF(linkNames, joints, links, *childItr, tree);
+            fillKdlTreeFromSDF(linkNames, joints, links, *childItr, model_name, tree);
         }
     }
     else{
@@ -285,7 +286,7 @@ void treeFromSdfModel(const sdf::ElementPtr& sdf_model, KDL::Tree& out)
 
     //build KDL::Tree using SDF information
     KDL::Tree tree(modelName);
-    fillKdlTreeFromSDF(linkNames, joints, links, tree.getRootSegment()->first, tree);
+    fillKdlTreeFromSDF(linkNames, joints, links, tree.getRootSegment()->first, modelName, tree);
     out = tree;
 }
 
