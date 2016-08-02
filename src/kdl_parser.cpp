@@ -39,7 +39,7 @@
 #include <urdf_parser/urdf_parser.h>
 #include <kdl/frames_io.hpp>
 
-#include <base/Logging.hpp>
+#include <base-logging/Logging.hpp>
 
 using namespace std;
 using namespace KDL;
