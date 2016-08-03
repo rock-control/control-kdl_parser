@@ -35,11 +35,11 @@
 /* Author: Wim Meeussen */
 
 #include "kdl_parser.hpp"
-#include <urdf_model/model.h>
+#include <urdf_model/types.h>
 #include <urdf_parser/urdf_parser.h>
 #include <kdl/frames_io.hpp>
 
-#include <base/Logging.hpp>
+#include <base-logging/Logging.hpp>
 
 using namespace std;
 using namespace KDL;
@@ -66,7 +66,7 @@ Frame toKdl(urdf::Pose p)
 }
 
 // construct joint
-Joint toKdl(boost::shared_ptr<urdf::Joint> jnt)
+Joint toKdl(urdf::JointSharedPtr jnt)
 {
     Frame F_parent_jnt = toKdl(jnt->parent_to_joint_origin_transform);
 
@@ -92,7 +92,7 @@ Joint toKdl(boost::shared_ptr<urdf::Joint> jnt)
 }
 
 // construct inertia
-RigidBodyInertia toKdl(boost::shared_ptr<urdf::Inertial> i)
+RigidBodyInertia toKdl(urdf::InertialSharedPtr i)
 {
     Frame origin = toKdl(i->origin);
     // kdl specifies the inertia in the reference frame of the link, the urdf specifies the inertia in the inertia reference frame
@@ -101,9 +101,9 @@ RigidBodyInertia toKdl(boost::shared_ptr<urdf::Inertial> i)
 
 
 // recursive function to walk through tree
-bool addChildrenToTree(boost::shared_ptr<const urdf::Link> root, Tree& tree)
+bool addChildrenToTree(urdf::LinkConstSharedPtr root, Tree& tree)
 {
-    std::vector<boost::shared_ptr<urdf::Link> > children = root->child_links;
+    std::vector<urdf::LinkSharedPtr > children = root->child_links;
     LOG_DEBUG("DEBUG: Link %s had %i children", root->name.c_str(), (int)children.size());
 
     // constructs the optional inertia
@@ -151,7 +151,7 @@ bool treeFromParam(const string& param, Tree& tree)
 
 bool treeFromString(const string& xml, Tree& tree)
 {
-    boost::shared_ptr<urdf::ModelInterface> robot_model = urdf::parseURDF(xml);
+    urdf::ModelInterfaceSharedPtr robot_model = urdf::parseURDF(xml);
     return treeFromUrdfModel(*robot_model, tree);
 }
 
