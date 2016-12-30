@@ -4,6 +4,9 @@
 #include <sdf/sdf.hh>
 
 using namespace std;
+using ignition::math::Vector3d;
+using ignition::math::Pose3d;
+using ignition::math::Quaterniond;
 
 /*
  * SDF to KDL
@@ -17,18 +20,22 @@ typedef map<string, vector<string> > LinkNamesMap;
 /**
  * convert <axis> element to KDL::Vector
  */
-static KDL::Vector toKdl(sdf::Vector3 axis)
+static KDL::Vector toKdl(Vector3d axis)
 {
-    return KDL::Vector(axis.x, axis.y, axis.z);
+    return KDL::Vector(axis.X(), axis.Y(), axis.Z());
 }
 
+static KDL::Rotation toKdl(Quaterniond rot)
+{
+    return KDL::Rotation::Quaternion(rot.X(), rot.Y(), rot.Z(), rot.W());
+}
 /**
  * convert <pose> element to KDL::Frame
  */
-static KDL::Frame toKdl(sdf::Pose pose)
+static KDL::Frame toKdl(Pose3d pose)
 {
-    KDL::Vector position = KDL::Vector(pose.pos.x, pose.pos.y, pose.pos.z);
-    KDL::Rotation rotation = KDL::Rotation::Quaternion(pose.rot.x, pose.rot.y, pose.rot.z, pose.rot.w);
+    KDL::Vector position = toKdl(pose.Pos());
+    KDL::Rotation rotation = toKdl(pose.Rot());
     return KDL::Frame(rotation, position);
 }
 
@@ -52,7 +59,7 @@ static KDL::Joint toKdl(string name, string type, KDL::Frame pose, KDL::Vector a
  */
 static KDL::RigidBodyInertia sdfInertiaToKdl(sdf::ElementPtr sdf)
 {
-    KDL::Frame pose = toKdl(sdf->GetElement("pose")->Get<sdf::Pose>());
+    KDL::Frame pose = toKdl(sdf->GetElement("pose")->Get<Pose3d>());
     double mass;
 
     if (sdf->HasElement("mass")){
@@ -97,13 +104,13 @@ static void sdfExtractJointData(sdf::ElementPtr sdf_joint,
     }
 
     if (sdf_joint->HasElement("pose")){
-        joint_pose = toKdl(sdf_joint->GetElement("pose")->Get<sdf::Pose>());
+        joint_pose = toKdl(sdf_joint->GetElement("pose")->Get<Pose3d>());
     }
 
     if (sdf_joint->HasElement("axis")){
         sdf::ElementPtr sdf_axis = sdf_joint->GetElement("axis");
 
-        joint_axis = toKdl(sdf_joint->GetElement("axis")->GetElement("xyz")->Get<sdf::Vector3>());
+        joint_axis = toKdl(sdf_joint->GetElement("axis")->GetElement("xyz")->Get<Vector3d>());
 
         if (sdf_axis->HasElement("use_parent_model_frame")){
             use_parent_model_frame = sdf_axis->GetElement("use_parent_model_frame")->Get<bool>();
@@ -140,7 +147,7 @@ static void fillKdlTreeFromSDF(LinkNamesMap linkNames,
 
             KDL::Frame child2model;
             if (sdf_child_link->HasElement("pose")) {
-                child2model = toKdl(sdf_child_link->GetElement("pose")->Get<sdf::Pose>());
+                child2model = toKdl(sdf_child_link->GetElement("pose")->Get<ignition::math::Pose3d>());
             }
 
             KDL::RigidBodyInertia I;
@@ -167,7 +174,7 @@ static void fillKdlTreeFromSDF(LinkNamesMap linkNames,
                 sdf::ElementPtr sdf_parent_link = parent_link_itr->second;
 
                 if (sdf_parent_link->HasElement("pose")){
-                    parent2model = toKdl(sdf_parent_link->GetElement("pose")->Get<sdf::Pose>());
+                    parent2model = toKdl(sdf_parent_link->GetElement("pose")->Get<ignition::math::Pose3d>());
                 }
             }
 
@@ -309,13 +316,12 @@ bool treeFromSdfString(const string& xml, KDL::Tree& tree)
         return false;
     }
 
-    if (!sdf->root->HasElement("model")){
+    if (!sdf->Root()->HasElement("model")){
         LOG_ERROR("the <model> tag not exists");
         return false;
     }
 
-    treeFromSdfModel(sdf->root->GetElement("model"), tree);
-
+    treeFromSdfModel(sdf->Root()->GetElement("model"), tree);
     return true;
 }
 
