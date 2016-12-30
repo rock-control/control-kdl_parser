@@ -50,8 +50,9 @@ static KDL::Joint toKdl(string name, string type, KDL::Frame pose, KDL::Vector a
     else if (type == "prismatic"){
         return KDL::Joint(name, pose.p, pose.M * axis, KDL::Joint::TransAxis);
     }
+    else
+        throw runtime_error("cannot handle joint type " + type);
 
-    return KDL::Joint(KDL::Joint::None);
 }
 
 /**
