@@ -1,10 +1,10 @@
 #include <base/Logging.hpp>
 #include <kdl/tree.hpp>
+#include "kdl_parser.hpp"
 #include <sdf/sdf.hh>
 
 using namespace std;
 
-namespace kdl_parser {
 /*
  * SDF to KDL
  * bellow there are the source codes to convert SDFs information to KDL
@@ -17,7 +17,7 @@ typedef map<string, vector<string> > LinkNamesMap;
 /**
  * convert <axis> element to KDL::Vector
  */
-KDL::Vector toKdl(sdf::Vector3 axis)
+static KDL::Vector toKdl(sdf::Vector3 axis)
 {
     return KDL::Vector(axis.x, axis.y, axis.z);
 }
@@ -25,7 +25,7 @@ KDL::Vector toKdl(sdf::Vector3 axis)
 /**
  * convert <pose> element to KDL::Frame
  */
-KDL::Frame toKdl(sdf::Pose pose)
+static KDL::Frame toKdl(sdf::Pose pose)
 {
     KDL::Vector position = KDL::Vector(pose.pos.x, pose.pos.y, pose.pos.z);
     KDL::Rotation rotation = KDL::Rotation::Quaternion(pose.rot.x, pose.rot.y, pose.rot.z, pose.rot.w);
@@ -35,7 +35,7 @@ KDL::Frame toKdl(sdf::Pose pose)
 /**
  * convert <joint> element to KDL::Joint
  */
-KDL::Joint toKdl(string name, string type, KDL::Frame pose, KDL::Vector axis)
+static KDL::Joint toKdl(string name, string type, KDL::Frame pose, KDL::Vector axis)
 {
     if (type == "revolute"){
         return KDL::Joint(name, pose.p, pose.M * axis, KDL::Joint::RotAxis);
@@ -50,7 +50,7 @@ KDL::Joint toKdl(string name, string type, KDL::Frame pose, KDL::Vector axis)
 /**
  * convert <inertial> element to KDL::RigidBodyInertia
  */
-KDL::RigidBodyInertia sdfInertiaToKdl(sdf::ElementPtr sdf)
+static KDL::RigidBodyInertia sdfInertiaToKdl(sdf::ElementPtr sdf)
 {
     KDL::Frame pose = toKdl(sdf->GetElement("pose")->Get<sdf::Pose>());
     double mass;
@@ -81,7 +81,7 @@ KDL::RigidBodyInertia sdfInertiaToKdl(sdf::ElementPtr sdf)
 /*
  * extract joint data
  */
-void sdfExtractJointData(sdf::ElementPtr sdf_joint,
+static void sdfExtractJointData(sdf::ElementPtr sdf_joint,
                          string& joint_name,
                          string& joint_type,
                          KDL::Frame& joint_pose,
@@ -115,7 +115,7 @@ void sdfExtractJointData(sdf::ElementPtr sdf_joint,
 /**
  * Fill KDL::Tree with SDF information
  */
-void fillKdlTreeFromSDF(LinkNamesMap linkNames,
+static void fillKdlTreeFromSDF(LinkNamesMap linkNames,
                         JointsMap joints,
                         LinksMap links,
                         string parent_name,
@@ -201,7 +201,7 @@ void fillKdlTreeFromSDF(LinkNamesMap linkNames,
  * use link child as key to map refence the joints
  * if joint is a child then it has a joint
  */
-JointsMap sdfLoadJoints(string name_prefix, sdf::ElementPtr sdf_model)
+static JointsMap sdfLoadJoints(string name_prefix, sdf::ElementPtr sdf_model)
 {
     JointsMap joints;
 
@@ -222,7 +222,7 @@ JointsMap sdfLoadJoints(string name_prefix, sdf::ElementPtr sdf_model)
  * create a data structure to map <link> elements
  * use link name as key to map the links
  */
-LinksMap sdfLoadLinks(string name_prefix, sdf::ElementPtr sdf_model)
+static LinksMap sdfLoadLinks(string name_prefix, sdf::ElementPtr sdf_model)
 {
     map<string, sdf::ElementPtr> links;
 
@@ -243,7 +243,7 @@ LinksMap sdfLoadLinks(string name_prefix, sdf::ElementPtr sdf_model)
  * each parent has a list of children
  * this result is used to fill KDL::Tree
  */
-LinkNamesMap sdfBuildLinkNames(LinksMap links, JointsMap joints, string rootName)
+static LinkNamesMap sdfBuildLinkNames(LinksMap links, JointsMap joints, string rootName)
 {
 
     LinkNamesMap linkNames;
@@ -271,7 +271,7 @@ LinkNamesMap sdfBuildLinkNames(LinksMap links, JointsMap joints, string rootName
 
 }
 
-void treeFromSdfModel(const sdf::ElementPtr& sdf_model, KDL::Tree& out)
+void kdl_parser::treeFromSdfModel(const sdf::ElementPtr& sdf_model, KDL::Tree& out)
 {
     // model is the root segment
     string modelName = sdf_model->Get<string>("name");
@@ -291,6 +291,7 @@ void treeFromSdfModel(const sdf::ElementPtr& sdf_model, KDL::Tree& out)
     out = tree;
 }
 
+namespace kdl_parser {
 /**
  * load kdl tree from sdf xml string
  */
@@ -329,6 +330,3 @@ bool treeFromSdfFile(const string& path, KDL::Tree& tree)
 }
 
 }
-
-
-
