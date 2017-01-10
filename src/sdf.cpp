@@ -304,6 +304,12 @@ void kdl_parser::treeFromSdfModel(const sdf::ElementPtr& sdf_model, KDL::Tree& o
     //build KDL::Tree using SDF information
     KDL::Tree tree(model_name);
 
+    if (!sdf_model->HasElement("link"))
+    {
+        out = tree;
+        return;
+    }
+
     bool static_model = sdfIsModelStatic(sdf_model);
     sdf::ElementPtr sdf_root_link = sdf_model->GetElement("link");
     if (static_model) {

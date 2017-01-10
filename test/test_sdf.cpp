@@ -106,3 +106,14 @@ BOOST_AUTO_TEST_CASE(it_does_add_links_not_attached_to_the_first_link_if_the_mod
     BOOST_REQUIRE_EQUAL("test::child", tree.getRootSegment()->second.children[1]->second.children[0]->second.segment.getName());
 }
 
+BOOST_AUTO_TEST_CASE(it_returns_an_empty_tree_for_a_model_without_links)
+{
+    string sdf = "\
+        <sdf version=\"1.6\">\
+        <model name=\"test\" />\
+        </sdf>";
+
+    Tree tree;
+    BOOST_REQUIRE(treeFromString(sdf, tree, kdl_parser::ROBOT_MODEL_SDF));
+    BOOST_REQUIRE_EQUAL(0, tree.getNrOfSegments());
+}
