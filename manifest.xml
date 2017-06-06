@@ -10,5 +10,6 @@
   <depend package="control/kdl" />
   <depend package="base/types"/>
   <depend package="control/urdfdom"/>
+  <depend package="control/sdformat"/>
 
 </package>
