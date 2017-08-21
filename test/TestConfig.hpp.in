@@ -1,0 +1,6 @@
+#ifndef KDL_PARSER_TEST_CONFIG_HPP
+#define KDL_PARSER_TEST_CONFIG_HPP
+
+#define TEST_DATA_PATH(x) "@CMAKE_CURRENT_SOURCE_DIR@/data/" x
+
+#endif
