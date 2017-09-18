@@ -153,7 +153,7 @@ static void convertSdfTree(
     string root_link_name = model_name + "::" + sdf_root_link->Get<string>("name");
     KDL::Segment segment(root_link_name,
             KDL::Joint(root_link_name, KDL::Joint::None),
-            getLinkPose(sdf_root_link),
+            KDL::Frame(KDL::Rotation::Identity(), KDL::Vector::Zero()),
             KDL::RigidBodyInertia());
     tree.addSegment(segment, model_name);
 
