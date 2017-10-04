@@ -151,10 +151,15 @@ static void convertSdfTree(
         KDL::Tree& tree)
 {
     string root_link_name = model_name + "::" + sdf_root_link->Get<string>("name");
+
+    KDL::RigidBodyInertia I;
+    if (sdf_root_link->HasElement("inertial")){
+        I = sdfInertiaToKdl(sdf_root_link->GetElement("inertial"));
+    }
+
     KDL::Segment segment(root_link_name,
             KDL::Joint(root_link_name, KDL::Joint::None),
-            KDL::Frame(KDL::Rotation::Identity(), KDL::Vector::Zero()),
-            KDL::RigidBodyInertia());
+            KDL::Frame(KDL::Rotation::Identity(), KDL::Vector::Zero()), I);
     tree.addSegment(segment, model_name);
 
     KDL::Frame root2model = getLinkPose(sdf_root_link);
