@@ -11,5 +11,6 @@
   <depend package="base/types"/>
   <depend package="control/urdfdom"/>
   <depend package="control/sdformat"/>
+  <depend package="external/tinyxml"/>
 
 </package>
