@@ -4,9 +4,15 @@
 #include <sdf/sdf.hh>
 
 using namespace std;
+#if SDF_MAJOR_VERSION >= 15
+using gz::math::v8::Vector3d;
+using gz::math::v8::Pose3d;
+using gz::math::v8::Quaterniond;
+#else
 using ignition::math::Vector3d;
 using ignition::math::Pose3d;
 using ignition::math::Quaterniond;
+#endif
 
 /*
  * SDF to KDL
