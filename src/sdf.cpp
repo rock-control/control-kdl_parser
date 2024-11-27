@@ -4,7 +4,7 @@
 #include <sdf/sdf.hh>
 
 using namespace std;
-#if SDF_MAJOR_VERSION >= 15
+#if SDF_MAJOR_VERSION >= 14
 using gz::math::Vector3d;
 using gz::math::Pose3d;
 using gz::math::Quaterniond;
