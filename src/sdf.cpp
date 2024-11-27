@@ -5,9 +5,9 @@
 
 using namespace std;
 #if SDF_MAJOR_VERSION >= 15
-using gz::math::v8::Vector3d;
-using gz::math::v8::Pose3d;
-using gz::math::v8::Quaterniond;
+using gz::math::Vector3d;
+using gz::math::Pose3d;
+using gz::math::Quaterniond;
 #else
 using ignition::math::Vector3d;
 using ignition::math::Pose3d;
