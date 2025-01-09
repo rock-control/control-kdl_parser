@@ -47,16 +47,16 @@ static KDL::Frame toKdl(Pose3d pose)
 /**
  * convert <joint> element to KDL::Joint
  */
-static KDL::Joint toKdl(string name, string type, KDL::Frame pose, KDL::Vector axis)
+static KDL::Joint toKdl(string name, string type, KDL::Frame pose, KDL::Vector axis, double joint_upper, double joint_lower)
 {
     if (type == "revolute"){
-        return KDL::Joint(name, pose.p, pose.M * axis, KDL::Joint::RotAxis);
+        return KDL::Joint(name, pose.p, pose.M * axis, KDL::Joint::RotAxis, 1, 0, 0, 0, 0, joint_upper, joint_lower);
     }
     else if (type == "prismatic"){
-        return KDL::Joint(name, pose.p, pose.M * axis, KDL::Joint::TransAxis);
+        return KDL::Joint(name, pose.p, pose.M * axis, KDL::Joint::TransAxis, 1, 0, 0, 0, 0, joint_upper, joint_lower);
     }
     else if (type == "fixed"){
-        return KDL::Joint(name, KDL::Joint::None);
+        return KDL::Joint(name, KDL::Joint::None, 1, 0, 0, 0, 0, joint_upper, joint_lower);
     }
     else
         throw runtime_error("cannot handle joint type " + type);
@@ -111,6 +111,8 @@ static void sdfExtractJointData(sdf::ElementPtr sdf_joint,
                          string& joint_type,
                          KDL::Frame& joint_pose,
                          KDL::Vector& joint_axis,
+                         double& joint_upper,
+                         double& joint_lower,
                          bool& use_parent_model_frame)
 {
     if (sdf_joint->HasAttribute("name")){
@@ -132,6 +134,15 @@ static void sdfExtractJointData(sdf::ElementPtr sdf_joint,
 
         if (sdf_axis->HasElement("use_parent_model_frame")){
             use_parent_model_frame = sdf_axis->GetElement("use_parent_model_frame")->Get<bool>();
+        }
+
+        if (sdf_axis->HasElement("limit")){
+            sdf::ElementPtr limit_elem = sdf_axis->GetElement("limit");
+
+            if (limit_elem->HasElement("upper"))
+                joint_upper = limit_elem->Get<double>("upper");
+            if (limit_elem->HasElement("lower"))
+                joint_lower = limit_elem->Get<double>("lower");
         }
 
     }
@@ -201,10 +212,12 @@ static void convertSdfTree(
         string joint_type;
         string joint_name;
         KDL::Vector joint_axis;
+        double joint_upper;
+        double joint_lower;
         KDL::Frame joint2child;
         bool use_parent_model_frame = false;
 
-        sdfExtractJointData(sdf_joint, joint_name, joint_type, joint2child, joint_axis, use_parent_model_frame);
+        sdfExtractJointData(sdf_joint, joint_name, joint_type, joint2child, joint_axis, joint_upper, joint_lower, use_parent_model_frame);
 
         KDL::Frame child2parent = root2model.Inverse() * child2model;
         KDL::Frame joint2parent = child2parent * joint2child;
@@ -214,7 +227,7 @@ static void convertSdfTree(
             joint_axis = joint2model.M.Inverse() * joint_axis;
         }
 
-        KDL::Joint joint = toKdl(model_name + "::" + joint_name, joint_type, joint2parent, joint_axis);
+        KDL::Joint joint = toKdl(model_name + "::" + joint_name, joint_type, joint2parent, joint_axis, joint_upper, joint_lower);
         KDL::Segment segment(child_link_name, joint, child2parent, I);
         if (! tree.addSegment(segment, root_link_name))
             throw std::logic_error("failed to add segment " + child_link_name + " as child of " + root_link_name);
